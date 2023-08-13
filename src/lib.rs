@@ -78,7 +78,7 @@ macro_rules! trace {
 pub fn _trace(text: String, module_path: &str) {
 	//! Utility function for the [`trace!`] macro.
 	//! 
-	//! [`trace!`]: crate::trace::trace
+	//! [`trace!`]: crate::trace
 	
 	let trace_capture = backtrace::Backtrace::capture();
 	if trace_capture.status() != backtrace::BacktraceStatus::Captured {

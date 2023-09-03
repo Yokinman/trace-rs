@@ -86,15 +86,17 @@ pub fn _trace(text: String, module_path: &str) {
 		return
 	}
 	
-	static LAST_TRACE_INFO: Mutex<(Vec<String>, usize)> = Mutex::new((vec![], 0));
-	let (last_trace, basis_depth) = &mut *LAST_TRACE_INFO.lock().unwrap();
+	static LAST_TRACE: Mutex<(Vec<String>, usize)> = Mutex::new((vec![], 0));
+	let (last_trace, basis_depth) = &mut *LAST_TRACE.lock().unwrap();
 	let last_trace_depth = last_trace.len();
 	
-	let trace_string = format!("{:?}", trace_capture);
-	let trace        = trace_string.rsplit('}');
+	let trace_string = format!("{:#?}", trace_capture);
+	let trace        = trace_string.rsplit('\n');
 	let trace_path   = &format!("fn: \"{}::_trace\"", module_path!());
-	let trace_size   = trace.size_hint();
-	last_trace.reserve(trace_size.1.unwrap_or(trace_size.0).saturating_sub(last_trace.capacity()));
+	
+	let (min_depth, max_depth) = trace.size_hint();
+	last_trace.reserve(max_depth.unwrap_or(min_depth)
+		.saturating_sub(last_trace.capacity()));
 	
 	let crate_name = module_path.split("::").next().unwrap();
 	let crate_path = &format!("fn: \"{}::", crate_name);
@@ -107,9 +109,13 @@ pub fn _trace(text: String, module_path: &str) {
 		if frame.contains(trace_path) {
 			break 'find_depth
 		}
+		
+		 // First Frame in Caller's Crate:
 		if crate_depth == 0 && frame.contains(crate_path) {
 			crate_depth = trace_depth;
 		}
+		
+		 // Compare & Update Stored Frame:
 		if trace_depth < last_trace_depth {
 			if match_depth == trace_depth && frame == last_trace[trace_depth] {
 				match_depth += 1;
@@ -118,14 +124,15 @@ pub fn _trace(text: String, module_path: &str) {
 		} else {
 			last_trace.push(frame.to_owned());
 		}
+		
 		trace_depth += 1;
 	}
 	if trace_depth == 0 {
 		println!("{text}");
 		return
 	}
-	last_trace.truncate(trace_depth);
 	trace_depth -= 1;
+	last_trace.truncate(trace_depth);
 	match_depth = match_depth.min(trace_depth);
 	
 	 // Print Line w/ Indentation:
